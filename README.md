@@ -69,11 +69,11 @@ Vào repository Settings → Secrets and variables → Actions → New repositor
 Thêm các secrets:
 
 - **DISCORD_WEBHOOK_URL**: URL webhook Discord vừa tạo
-- **SUPABASE_URL**: Project URL từ Supabase
+- **SUPABASE_URL**: Project URL từ Supabase (dạng `https://xxx.supabase.co`)
 - **SUPABASE_KEY**: API Key (anon/public) từ Supabase
-- **PORTAL_BASE_URL**: `https://portal.url` (optional, có giá trị mặc định)
-- **CTSV_BASE_URL**: `https://ctsv.url` (optional, có giá trị mặc định)
-- **KHTC_BASE_URL**: `https://khtc.url` (optional, có giá trị mặc định)
+- **PORTAL_BASE_URL**: Base URL nguồn 1
+- **CTSV_BASE_URL**: Base URL nguồn 2
+- **KHTC_BASE_URL**: Base URL nguồn 3
 
 ### 6. Kích hoạt GitHub Actions
 
@@ -102,7 +102,6 @@ Linux/Mac:
 export DISCORD_WEBHOOK_URL="your_webhook_url"
 export SUPABASE_URL="your_supabase_url"
 export SUPABASE_KEY="your_supabase_key"
-# Optional: Override default URLs
 export PORTAL_BASE_URL="https://portal.url"
 export CTSV_BASE_URL="https://ctsv.url"
 export KHTC_BASE_URL="https://khtc.url"
@@ -117,7 +116,6 @@ Windows (PowerShell):
 $env:DISCORD_WEBHOOK_URL="your_webhook_url"
 $env:SUPABASE_URL="your_supabase_url"
 $env:SUPABASE_KEY="your_supabase_key"
-# Optional: Override default URLs
 $env:PORTAL_BASE_URL="https://portal.url"
 $env:CTSV_BASE_URL="https://ctsv.url"
 $env:KHTC_BASE_URL="https://khtc.url"
@@ -170,21 +168,11 @@ python crawl_notifications.py
 
 ### Thay đổi URL crawl
 
-Các URL mặc định có thể được override bằng environment variables:
+Thay đổi các URL bằng cách cập nhật GitHub Secrets:
 
-```bash
-# Linux/Mac
-export PORTAL_BASE_URL="https://your-portal.edu.vn"
-export CTSV_BASE_URL="https://your-ctsv.edu.vn"
-export KHTC_BASE_URL="https://your-khtc.edu.vn"
-
-# Windows PowerShell
-$env:PORTAL_BASE_URL="https://your-portal.edu.vn"
-$env:CTSV_BASE_URL="https://your-ctsv.edu.vn"
-$env:KHTC_BASE_URL="https://your-khtc.edu.vn"
-```
-
-Hoặc thêm vào GitHub Secrets để áp dụng cho GitHub Actions.
+- **PORTAL_BASE_URL**: Base URL nguồn 1
+- **CTSV_BASE_URL**: Base URL nguồn 2
+- **KHTC_BASE_URL**: Base URL nguồn 3
 
 **Lưu ý**: Mỗi nguồn mới cần có hàm crawl riêng trong code để parse đúng cấu trúc HTML.
 

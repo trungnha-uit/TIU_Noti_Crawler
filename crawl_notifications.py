@@ -8,14 +8,17 @@ from supabase import create_client, Client
 
 class PortalCrawler:
     def __init__(self):
-        # Get base URLs from environment or use defaults
-        portal_base = os.getenv('PORTAL_BASE_URL')
-        ctsv_base = os.getenv('CTSV_BASE_URL')
-        khtc_base = os.getenv('KHTC_BASE_URL')
+        # Get base URLs from environment (required)
+        self.portal_base = os.getenv('PORTAL_BASE_URL')
+        self.ctsv_base = os.getenv('CTSV_BASE_URL')
+        self.khtc_base = os.getenv('KHTC_BASE_URL')
 
-        self.portal_url = f"{portal_base}/bai-viet"
-        self.ctsv_url = f"{ctsv_base}/thong-bao"
-        self.khtc_url = f"{khtc_base}/thongbao"
+        if not self.portal_base or not self.ctsv_base or not self.khtc_base:
+            raise ValueError("Missing required environment variables: PORTAL_BASE_URL, CTSV_BASE_URL, KHTC_BASE_URL")
+
+        self.portal_url = f"{self.portal_base}/bai-viet"
+        self.ctsv_url = f"{self.ctsv_base}/thong-bao"
+        self.khtc_url = f"{self.khtc_base}/thongbao"
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -91,8 +94,7 @@ class PortalCrawler:
                     # Get link
                     link = article.get('href', '')
                     if link and not link.startswith('http'):
-                        portal_base = os.getenv('PORTAL_BASE_URL')
-                        link = f"{portal_base}{link}"
+                        link = f"{self.portal_base}{link}"
 
                     # Get date
                     date = ''
@@ -122,7 +124,7 @@ class PortalCrawler:
                         'date': date,
                         'categories': categories,
                         'featured': is_featured,
-                        'source': portal_base,
+                        'source': self.portal_base,
                         'crawled_at': datetime.now().isoformat()
                     })
                 except Exception as e:
@@ -165,8 +167,7 @@ class PortalCrawler:
                     title = link_elem.get_text(strip=True)
                     link = link_elem.get('href', '')
                     if link and not link.startswith('http'):
-                        ctsv_base = os.getenv('CTSV_BASE_URL')
-                        link = f"{ctsv_base}{link}"
+                        link = f"{self.ctsv_base}{link}"
 
                     # Get date from submitted section
                     date = ''
@@ -192,7 +193,7 @@ class PortalCrawler:
                         'date': date,
                         'categories': categories,
                         'featured': is_featured,
-                        'source': ctsv_base,
+                        'source': self.ctsv_base,
                         'crawled_at': datetime.now().isoformat()
                     })
                 except Exception as e:
@@ -236,8 +237,7 @@ class PortalCrawler:
                     title = h2_elem.get_text(strip=True)
                     link = link_elem.get('href', '')
                     if link and not link.startswith('http'):
-                        khtc_base = os.getenv('KHTC_BASE_URL')
-                        link = f"{khtc_base}{link}"
+                        link = f"{self.khtc_base}{link}"
 
                     # Get date from submitted section
                     date = ''
@@ -263,7 +263,7 @@ class PortalCrawler:
                         'date': date,
                         'categories': categories,
                         'featured': is_featured,
-                        'source': khtc_base,
+                        'source': self.khtc_base,
                         'crawled_at': datetime.now().isoformat()
                     })
                 except Exception as e:
