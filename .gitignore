@@ -1,0 +1,28 @@
+# Ignored files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+.env 
+.env.*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache files - DO NOT commit to GitHub
+.notifications_cache.json
+notifications.json
+*.json
+web_structure.html
