@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 from supabase import create_client, Client
@@ -125,7 +125,7 @@ class PortalCrawler:
                         'categories': categories,
                         'featured': is_featured,
                         'source': self.portal_base,
-                        'crawled_at': datetime.now().isoformat()
+                        'crawled_at': datetime.now(timezone(timedelta(hours=7))).isoformat()
                     })
                 except Exception as e:
                     print(f"Error parsing article: {e}")
@@ -194,7 +194,7 @@ class PortalCrawler:
                         'categories': categories,
                         'featured': is_featured,
                         'source': self.ctsv_base,
-                        'crawled_at': datetime.now().isoformat()
+                        'crawled_at': datetime.now(timezone(timedelta(hours=7))).isoformat()
                     })
                 except Exception as e:
                     print(f"Error parsing CTSV article: {e}")
@@ -264,7 +264,7 @@ class PortalCrawler:
                         'categories': categories,
                         'featured': is_featured,
                         'source': self.khtc_base,
-                        'crawled_at': datetime.now().isoformat()
+                        'crawled_at': datetime.now(timezone(timedelta(hours=7))).isoformat()
                     })
                 except Exception as e:
                     print(f"Error parsing KHTC article: {e}")
@@ -363,12 +363,126 @@ class PortalCrawler:
         except Exception as e:
             print(f"Error saving to Supabase: {e}")
 
+    def get_source_info(self, source_url: str) -> Dict[str, str]:
+        """Get source identification (icon and name) with portal prioritized"""
+        if self.portal_base in source_url:
+            return {
+                "icon": "🏛️",
+                "name": "Portal",
+                "color": 15844367,  # Gold/Orange for portal (highest priority)
+                "priority": 1
+            }
+        elif self.ctsv_base in source_url:
+            return {
+                "icon": "👥",
+                "name": "CTSV",
+                "color": 5793266,  # Green
+                "priority": 2
+            }
+        elif self.khtc_base in source_url:
+            return {
+                "icon": "📊",
+                "name": "KHTC",
+                "color": 3447003,  # Blue
+                "priority": 3
+            }
+        else:
+            return {
+                "icon": "📢",
+                "name": "Unknown",
+                "color": 9807270,  # Gray
+                "priority": 4
+            }
+
+    def send_start_notification(self, webhook_url: str, new_count: int):
+        """Send start notification with count of new notifications"""
+        # Vietnam timezone (UTC+7)
+        vietnam_tz = timezone(timedelta(hours=7))
+        current_time = datetime.now(vietnam_tz).strftime("%d/%m/%Y %H:%M:%S")
+
+        embed = {
+            "title": "🔔 Bắt đầu kiểm tra thông báo mới",
+            "description": f"**Tìm thấy: {new_count} thông báo mới**" if new_count > 0 else "Đang kiểm tra thông báo...",
+            "color": 3066993,  # Dark green
+            "fields": [
+                {
+                    "name": "⏰ Thời gian",
+                    "value": current_time,
+                    "inline": True
+                }
+            ],
+            "footer": {
+                "text": "Portal Notification System"
+            },
+            "timestamp": datetime.now(vietnam_tz).isoformat()
+        }
+
+        payload = {"embeds": [embed]}
+
+        try:
+            response = requests.post(webhook_url, json=payload)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"Failed to send start notification to Discord: {e}")
+
+    def send_end_notification(self, webhook_url: str, new_count: int, total_checked: int):
+        """Send end notification with summary"""
+        # Vietnam timezone (UTC+7)
+        vietnam_tz = timezone(timedelta(hours=7))
+        current_time = datetime.now(vietnam_tz).strftime("%d/%m/%Y %H:%M:%S")
+
+        if new_count > 0:
+            description = f"✅ Đã gửi **{new_count}** thông báo mới"
+            color = 3066993  # Green
+        else:
+            description = "✅ Không có thông báo mới"
+            color = 9807270  # Gray
+
+        embed = {
+            "title": "🏁 Hoàn thành kiểm tra",
+            "description": description,
+            "color": color,
+            "fields": [
+                {
+                    "name": "📋 Tổng số đã kiểm tra",
+                    "value": str(total_checked),
+                    "inline": True
+                },
+                {
+                    "name": "⏰ Thời gian",
+                    "value": current_time,
+                    "inline": True
+                }
+            ],
+            "footer": {
+                "text": "Portal Notification System"
+            },
+            "timestamp": datetime.now(vietnam_tz).isoformat()
+        }
+
+        payload = {"embeds": [embed]}
+
+        try:
+            response = requests.post(webhook_url, json=payload)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"Failed to send end notification to Discord: {e}")
+
     def send_to_discord(self, webhook_url: str, notifications: List[Dict]):
-        """Send new notifications to Discord"""
+        """Send new notifications to Discord with source identification"""
         if not notifications:
             return
 
-        for notif in notifications[:10]:  # Limit to 10 notifications per run
+        # Sort notifications by priority (portal first)
+        sorted_notifications = sorted(
+            notifications,
+            key=lambda n: (self.get_source_info(n.get('source', ''))['priority'], n.get('featured', False) == False)
+        )
+
+        for notif in sorted_notifications:
+            # Get source info
+            source_info = self.get_source_info(notif.get('source', ''))
+
             # Build category tags
             category_text = ""
             if notif.get('categories'):
@@ -376,6 +490,11 @@ class PortalCrawler:
 
             # Build fields
             fields = []
+            fields.append({
+                "name": f"{source_info['icon']} Nguồn",
+                "value": source_info['name'],
+                "inline": True
+            })
             if notif.get('date'):
                 fields.append({
                     "name": "📅 Ngày đăng",
@@ -395,13 +514,16 @@ class PortalCrawler:
                     "inline": False
                 })
 
+            # Use source-specific color, or gold for featured
+            embed_color = 13132095 if notif.get('featured') else source_info['color']
+
             embed = {
-                "title": notif['title'],
+                "title": f"{source_info['icon']} {notif['title']}",
                 "url": notif['link'],
-                "color": 13132095 if notif.get('featured') else 3447003,  # Gold for featured, blue for normal
+                "color": embed_color,
                 "fields": fields,
                 "footer": {
-                    "text": "Portal Notification System"
+                    "text": f"Portal Notification System • {source_info['name']}"
                 },
                 "timestamp": notif['crawled_at']
             }
@@ -446,9 +568,11 @@ def main():
         if n['title'] not in previous_titles
     ]
 
-    if new_notifications:
-        print(f"Found {len(new_notifications)} new notifications")
+    # Send start notification with count
+    print(f"Found {len(new_notifications)} new notifications")
+    crawler.send_start_notification(discord_webhook, len(new_notifications))
 
+    if new_notifications:
         # Send to Discord
         crawler.send_to_discord(discord_webhook, new_notifications)
         print("Sent to Discord!")
@@ -457,6 +581,9 @@ def main():
         crawler.save_notifications(new_notifications)
     else:
         print("No new notifications")
+
+    # Send end notification with summary
+    crawler.send_end_notification(discord_webhook, len(new_notifications), len(current_notifications))
 
 if __name__ == "__main__":
     main()
